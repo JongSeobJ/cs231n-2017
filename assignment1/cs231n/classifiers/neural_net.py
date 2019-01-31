@@ -80,8 +80,6 @@ class TwoLayerNet(object):
         relu = np.maximum(0, hidden)  # ReLU
         # output layer
         output = b2 + relu.dot(W2)
-        scores = output - output.max(axis=1, keepdims=True)
-        scores = np.exp(scores)/np.exp(scores).sum(axis=1, keepdims=True)
         
         # If the targets are not given then jump out, we're done
         if y is None:
@@ -95,8 +93,10 @@ class TwoLayerNet(object):
         # in the variable loss, which should be a scalar. Use the Softmax           #
         # classifier loss.                                                          #
         #############################################################################
-        loss = - np.log(scores[np.arange(N), y]).sum()
-        loss /= N
+        scores = output - output.max(axis=1, keepdims=True)
+        scores = np.exp(scores)/np.exp(scores).sum(axis=1, keepdims=True)
+
+        loss = -1 * np.log(scores[np.arange(N), y]).mean()
         loss += 0.5 * reg * (np.sum(W1*W1) + np.sum(W2*W2))
 
         # Backward pass: compute gradients
