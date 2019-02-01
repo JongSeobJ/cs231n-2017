@@ -64,6 +64,9 @@ class KNearestNeighbor(object):
         num_test = X.shape[0]
         num_train = self.X_train.shape[0]
         dists = np.zeros((num_test, num_train))
+
+        X_sum = np.sum(X**2, axis=1, keepdims=True)
+        X_train_sum = np.sum(self.X_train**2, axis=1)
         for i in xrange(num_test):
             for j in xrange(num_train):
                 #####################################################################
@@ -72,8 +75,9 @@ class KNearestNeighbor(object):
                 # training point, and store the result in dists[i, j]. You should   #
                 # not use a loop over dimension.                                    #
                 #####################################################################
-                dists[i,j] = np.sqrt(np.sum((X[i,:]-self.X_train[j,:])**2))
-        return dists
+                dists[i,j] = X_sum[i] + X_train_sum[j] - 2 * X[i].dot(self.X_train[j])
+
+        return np.sqrt(dists)
 
     def compute_distances_one_loop(self, X):
         """
@@ -85,14 +89,20 @@ class KNearestNeighbor(object):
         num_test = X.shape[0]
         num_train = self.X_train.shape[0]
         dists = np.zeros((num_test, num_train))
+
+        X_sum = np.sum(X**2, axis=1, keepdims=True)
+        X_train_sum = np.sum(self.X_train**2, axis=1)
+        # print(X_sum, X_train_sum)
+
         for i in xrange(num_test):
             #######################################################################
             # TODO:                                                               #
             # Compute the l2 distance between the ith test point and all training #
             # points, and store the result in dists[i, :].                        #
             #######################################################################
-            dists[i,:] = np.sqrt(((self.X_train - X[i])**2).sum(axis=1))
-        return dists
+            dists[i] = X_sum[i] + X_train_sum - 2 * X[i].reshape(1,-1).dot(self.X_train.T)
+
+        return np.sqrt(dists)
 
     def compute_distances_no_loops(self, X):
         """
