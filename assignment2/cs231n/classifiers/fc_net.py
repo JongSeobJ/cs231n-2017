@@ -47,11 +47,10 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer weights #
         # and biases using the keys 'W2' and 'b2'.                                 #
         ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
-
+        self.params['W1'] = np.random.randn(input_dim, hidden_dim) * weight_scale
+        self.params['b1'] = np.zeros(hidden_dim)
+        self.params['W2'] = np.random.randn(hidden_dim, num_classes) * weight_scale
+        self.params['b2'] = np.zeros(num_classes)
 
     def loss(self, X, y=None):
         """
@@ -77,16 +76,18 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+        W1, b1 = self.params['W1'], self.params['b1']
+        W2, b2 = self.params['W2'], self.params['b2']
+
+        hidden, cache = affine_relu_forward(X, W1, b1)
+        scores = hidden.dot(W2) + b2
 
         # If y is None then we are in test mode so just return scores
         if y is None:
             return scores
 
         loss, grads = 0, {}
+
         ############################################################################
         # TODO: Implement the backward pass for the two-layer net. Store the loss  #
         # in the loss variable and gradients in the grads dictionary. Compute data #
@@ -97,10 +98,32 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+
+        # Softmax & Loss
+        probs = scores - scores.max(axis=1, keepdims=True)
+        probs = np.exp(probs)/np.exp(probs).sum(axis=1, keepdims=True)
+        input_dim = X.shape[0]
+        loss = -1 * np.log(probs[np.arange(input_dim), y]).mean()
+        loss += 0.5 * self.reg * (np.sum(W1*W1) + np.sum(W2*W2))
+
+        # Backward pass: compute gradients
+        grads = {}
+        #############################################################################
+        # TODO: Compute the backward pass, computing the derivatives of the weights #
+        # and biases. Store the results in the grads dictionary. For example,       #
+        # grads['W1'] should store the gradient on W1, and be a matrix of same size #
+        #############################################################################
+
+        # Softmax loss back with shape (N, C)
+        probs[np.arange(input_dim), y] -= 1
+
+        grads['b2'] = probs.mean(axis=0)
+        grads['W2'] = hidden.T.dot(probs)/input_dim + self.reg*W2
+
+        _, dw1, db1 = affine_relu_backward(probs.dot(W2.T)/input_dim, cache)
+
+        grads['b1'] = db1
+        grads['W1'] = dw1 + self.reg*W1
 
         return loss, grads
 
@@ -163,10 +186,16 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to one and shift      #
         # parameters should be initialized to zero.                                #
         ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+        for i, dim in enumerate(hidden_dims):
+            if i == 0:
+                self.params['W'+str(i)] = np.random.randn(input_dim, dim) * weight_scale
+                self.params['b'+str(i)] = np.zeros(dim)
+            else:
+                self.params['W'+str(i)] = np.random.randn(pre_dim, dim) * weight_scale
+                self.params['b'+str(i)] = np.zeros(dim)
+            pre_dim = dim
+        self.params['W'+str(i+1)] = np.random.randn(pre_dim, num_classes) * weight_scale
+        self.params['b'+str(i+1)] = np.zeros(num_classes)    
 
         # When using dropout we need to pass a dropout_param dictionary to each
         # dropout layer so that the layer knows the dropout probability and the mode
