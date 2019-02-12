@@ -240,7 +240,6 @@ def batchnorm_backward(dout, cache):
     partial_mean += partial_var*np.mean(-2*x_minus_batch_mean, axis=0)
     dx = partial_norm_x/sqrt_var_eps + partial_var*2*x_minus_batch_mean/N 
     dx += partial_mean/N
-
     return dx, dgamma, dbeta
 
 
@@ -313,7 +312,8 @@ def dropout_forward(x, dropout_param):
         # TODO: Implement training phase forward pass for inverted dropout.   #
         # Store the dropout mask in the mask variable.                        #
         #######################################################################
-        pass
+        mask = np.random.randn(*x.shape) < p
+        out = x * mask / p
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -321,7 +321,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # TODO: Implement the test phase forward pass for inverted dropout.   #
         #######################################################################
-        pass
+        out = x
         #######################################################################
         #                            END OF YOUR CODE                         #
         #######################################################################
@@ -348,10 +348,8 @@ def dropout_backward(dout, cache):
         #######################################################################
         # TODO: Implement training phase backward pass for inverted dropout   #
         #######################################################################
-        pass
-        #######################################################################
-        #                          END OF YOUR CODE                           #
-        #######################################################################
+        dx = dout * (1*mask>0) / dropout_param.get('p')
+        
     elif mode == 'test':
         dx = dout
     return dx
