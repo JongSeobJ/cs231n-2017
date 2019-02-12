@@ -164,10 +164,21 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # variance, storing your result in the running_mean and running_var   #
         # variables.                                                          #
         #######################################################################
-        pass
-        #######################################################################
-        #                           END OF YOUR CODE                          #
-        #######################################################################
+        batch_mean = x.mean(axis=0)        
+        batch_var = np.mean(x**2,axis=0) - batch_mean**2
+        norm_x = (x - batch_mean)/(np.sqrt(batch_var+eps))
+        out = gamma * norm_x + beta
+        
+        running_mean = momentum * running_mean + (1 - momentum) * batch_mean
+        running_var = momentum * running_var + (1 - momentum) * batch_var
+
+        cache = {
+            'norm_x' : norm_x,
+            'x_minus_batch_mean' : (x - batch_mean),
+            'sqrt_var_eps' : np.sqrt(batch_var + eps),
+            'gamma' : gamma
+        }
+
     elif mode == 'test':
         #######################################################################
         # TODO: Implement the test-time forward pass for batch normalization. #
@@ -175,10 +186,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # then scale and shift the normalized data using gamma and beta.      #
         # Store the result in the out variable.                               #
         #######################################################################
-        pass
-        #######################################################################
-        #                          END OF YOUR CODE                           #
-        #######################################################################
+        out = (gamma/np.sqrt(running_var+eps)*x) + (beta-(gamma*running_mean)/np.sqrt(running_var+eps))
+        
     else:
         raise ValueError('Invalid forward batchnorm mode "%s"' % mode)
 
@@ -211,11 +220,23 @@ def batchnorm_backward(dout, cache):
     # TODO: Implement the backward pass for batch normalization. Store the    #
     # results in the dx, dgamma, and dbeta variables.                         #
     ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
 
+    # recall data from cache
+    N, D = dout.shape
+    norm_x = cache.get('norm_x', 0)
+    x_minus_batch_mean = cache.get('x_minus_batch_mean', 0)
+    sqrt_var_eps = cache.get('sqrt_var_eps', 0)
+    gamma = cache.get('gamma', 0)
+
+    dgamma = np.sum(norm_x * dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
+
+    # calculate partials for chain rule
+    partial_norm_x = dout.sum(axis=0) * gamma
+    partial_var = np.sum(-0.5*(partial_norm_x*x_minus_batch_mean)/sqrt_var_eps**3, axis=0)
+    partial_mean = -1*np.sum(partial_norm_x/sqrt_var_eps, axis=0) + partial_var*np.mean(-2*x_minus_batch_mean, axis=0)
+    dx = partial_norm_x/sqrt_var_eps + partial_var*2*x_minus_batch_mean/N + partial_var/N
+    
     return dx, dgamma, dbeta
 
 
@@ -241,10 +262,18 @@ def batchnorm_backward_alt(dout, cache):
     # should be able to compute gradients with respect to the inputs in a     #
     # single statement; our implementation fits on a single 80-character line.#
     ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+
+    # recall data from cache
+    N, D = dout.shape
+    norm_x = cache.get('norm_x', 0)
+    x_minus_batch_mean = cache.get('x_minus_batch_mean', 0)
+    sqrt_var_eps = cache.get('sqrt_var_eps', 0)
+    gamma = cache.get('gamma', 0)
+
+    dgamma = np.sum(norm_x * dout, axis=0)
+    dbeta = np.sum(dout, axis=0)
+    dx = (1 / N) * gamma * 1/sqrt_var_eps * ((N * dout) - np.sum(dout, axis=0)\
+         - (x_minus_batch_mean) * np.square(1/sqrt_var_eps) * np.sum(dout * (x_minus_batch_mean), axis=0))
 
     return dx, dgamma, dbeta
 
