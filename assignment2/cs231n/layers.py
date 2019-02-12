@@ -174,7 +174,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
         cache = {
             'norm_x' : norm_x,
-            'x_minus_batch_mean' : (x - batch_mean),
+            'x_minus_batch_mean' : x-batch_mean,
             'sqrt_var_eps' : np.sqrt(batch_var + eps),
             'gamma' : gamma
         }
@@ -232,11 +232,15 @@ def batchnorm_backward(dout, cache):
     dbeta = np.sum(dout, axis=0)
 
     # calculate partials for chain rule
-    partial_norm_x = dout.sum(axis=0) * gamma
-    partial_var = np.sum(-0.5*(partial_norm_x*x_minus_batch_mean)/sqrt_var_eps**3, axis=0)
-    partial_mean = -1*np.sum(partial_norm_x/sqrt_var_eps, axis=0) + partial_var*np.mean(-2*x_minus_batch_mean, axis=0)
-    dx = partial_norm_x/sqrt_var_eps + partial_var*2*x_minus_batch_mean/N + partial_var/N
+
+    partial_norm_x = dout * gamma
     
+    partial_var = np.sum(-1 * partial_norm_x * x_minus_batch_mean / pow(sqrt_var_eps, 3) / 2, axis=0)
+    partial_mean = np.sum(-1*partial_norm_x/sqrt_var_eps, axis=0)
+    partial_mean += partial_var*np.mean(-2*x_minus_batch_mean, axis=0)
+    dx = partial_norm_x/sqrt_var_eps + partial_var*2*x_minus_batch_mean/N 
+    dx += partial_mean/N
+
     return dx, dgamma, dbeta
 
 

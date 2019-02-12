@@ -193,7 +193,6 @@ class FullyConnectedNet(object):
                 self.params['W'+str(i)] = np.random.randn(input_dim, dim) * weight_scale
             else:
                 self.params['W'+str(i)] = np.random.randn(pre_dim, dim) * weight_scale
-            
             if self.use_batchnorm:
                 self.params['gamma'+str(i)] = np.ones(dim)
                 self.params['beta'+str(i)] = np.zeros(dim)
@@ -256,15 +255,20 @@ class FullyConnectedNet(object):
         ############################################################################
         cache_dict = {}
         for i in range(self.num_layers):
+            cache_dict.setdefault(i, {})
             W = self.params['W'+str(i)]
             b = self.params['b'+str(i)]
-            # beta = self.params['beta'+str(i)]
-            # gamma = self.params['gamma'+str(i)]
 
             scores, f_cache = affine_forward(scores, W, b) if i!=0 else affine_forward(X, W, b)
+            cache_dict[i]['f_cache'] = f_cache
+            if self.use_batchnorm and i != self.num_layers-1:
+                beta = self.params['beta'+str(i)]
+                gamma = self.params['gamma'+str(i)]
+                scores, b_cache = batchnorm_forward(scores, gamma, beta, self.bn_params[i])
+                cache_dict[i]['b_cache'] = b_cache
             if i != self.num_layers-1:
                 scores, r_cache = relu_forward(scores)
-            cache_dict[i] = {'f_cache': f_cache, 'r_cache':r_cache} #'b_cache':b_cache, 
+                cache_dict[i]['r_cache'] = r_cache
         
 
         # If test mode return early
@@ -288,6 +292,7 @@ class FullyConnectedNet(object):
         
         loss, dout = softmax_loss(scores, y)
         # caculate for last layer
+        
         W = self.params['W'+str(i)]
         dout, dw, db = affine_backward(dout, cache_dict[i].get('f_cache'))
         grads['b'+str(i)] = db
@@ -297,12 +302,15 @@ class FullyConnectedNet(object):
         for i in reversed(range(self.num_layers-1)):
             W = self.params['W'+str(i)]
             dout = relu_backward(dout, cache_dict[i].get('r_cache'))
+
+            if self.use_batchnorm:
+                dout, dgamma, dbeta = batchnorm_backward_alt(dout, cache_dict[i].get('b_cache'))
+                grads['beta'+str(i)] = dbeta
+                grads['gamma'+str(i)] = dgamma
+
             dout, dw, db = affine_backward(dout, cache_dict[i].get('f_cache'))
             grads['b'+str(i)] = db
             grads['W'+str(i)] = dw + self.reg*W
             loss += 0.5 * self.reg * np.sum(W**2)
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
 
         return loss, grads
