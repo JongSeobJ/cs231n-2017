@@ -378,15 +378,35 @@ def conv_forward_naive(x, w, b, conv_param):
       W' = 1 + (W + 2 * pad - WW) / stride
     - cache: (x, w, b, conv_param)
     """
-    out = None
+    stride, pad = conv_param['stride'], conv_param['pad']
+    
+    N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    
+
+    H_out = 1 + int((H + 2*pad - HH)/stride)
+    W_out = 1 + int((W + 2*pad - WW)/stride)
+
+    out = np.zeros((N, F, H_out, W_out))
     ###########################################################################
     # TODO: Implement the convolutional forward pass.                         #
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+
+    x_pad = np.pad(x,((0,0), (0,0), (pad,pad), (pad,pad)), 'constant')
+
+    # Matrix 
+    input_mat = []
+    for i in range(H_out):
+        for j in range(W_out):
+            feature = x_pad[:, :, stride*i:stride*i+HH, stride*j:stride*j+WW].reshape(N,-1)
+            input_mat.append(feature)
+    input_mat = np.transpose(input_mat, (1,0,2))
+
+    weight_mat = w.reshape(F,-1)
+    out = input_mat.dot(weight_mat.T) + b
+    out = out.transpose(0,2,1).reshape(N,F,H_out,W_out)
+
     cache = (x, w, b, conv_param)
     return out, cache
 
@@ -408,11 +428,42 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    x, w, b, conv_param = cache
+    stride, pad = conv_param['stride'], conv_param['pad']
+    N, C, H, W = x.shape
+    F, C, HH, WW = w.shape
+    H_out = 1 + int((H + 2*pad - HH)/stride)
+    W_out = 1 + int((W + 2*pad - WW)/stride)
+
+    x_pad = np.pad(x,((0,0), (0,0), (pad,pad), (pad,pad)), 'constant')
+
+    input_mat = []
+    for i in range(H_out):
+        for j in range(W_out):
+            feature = x_pad[:, :, stride*i:stride*i+HH, stride*j:stride*j+WW].reshape(N,-1)
+            input_mat.append(feature)
+    input_mat = np.transpose(input_mat, (1,2,0))
+    dout_matrix = dout.reshape(N, F, -1)
+
+    dw = np.zeros((F, C*HH*WW))
+    for n in range(N):
+        temp = input_mat[n].dot(dout_matrix[n].T)
+        dw += temp.T
+    dw = dw.reshape(F,C,HH,WW)
+    db = dout.transpose((1,0,2,3)).reshape(F,-1).sum(axis=1)
+
+    weight_mat = w.reshape(F,-1)
+    dx_mat = dout_matrix.transpose(0,2,1).dot(weight_mat)
+    dx = np.zeros(x_pad.shape)
+    cnt = 0
+    for i in range(H_out):
+        for j in range(W_out):
+            dx[:, :, stride*i:stride*i+HH, stride*j:stride*j+WW] += dx_mat[:,cnt,:].reshape(N,C,HH,WW)
+            cnt+=1
+    dx = dx[:,:,pad:-pad,pad:-pad]
+
     return dx, dw, db
+
 
 
 def max_pool_forward_naive(x, pool_param):
