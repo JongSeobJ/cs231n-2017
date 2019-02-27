@@ -137,10 +137,38 @@ class CaptioningRNN(object):
         # defined above to store loss and gradients; grads[k] should give the      #
         # gradients for self.params[k].                                            #
         ############################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+
+        # 1. affine transformation
+        affine_out, affine_cache = affine_forward(features, W_proj, b_proj)
+        # 2. embedding layer
+        embed_out, emb_cache = word_embedding_forward(captions_in, W_embed)
+        # 3. rnn or lstm forward
+        if self.cell_type == 'rnn':
+            rnn_out, rnn_cache = rnn_forward(embed_out, affine_out, Wx, Wh, b)
+        else:
+            rnn_out, rnn_cache = lstm_forward(embed_out, affine_out, Wx, Wh, b)
+        # 4. out to vocab
+        vocab_out, vocab_cache = temporal_affine_forward(rnn_out, W_vocab, b_vocab)
+        # 5. softmax
+        loss, dout = temporal_softmax_loss(vocab_out, captions_out, mask, verbose=False)
+
+        # gradient
+        dout, dW_vocab, db_vocab = temporal_affine_backward(dout, vocab_cache) 
+        if self.cell_type == 'rnn':
+            dembed, daffine, dWx, dWh, db = rnn_backward(dout, rnn_cache)
+        else:
+            dembed, daffine, dWx, dWh, db = lstm_backward(dout, rnn_cache)
+        dW_embed = word_embedding_backward(dembed, emb_cache)
+        dout, dW_proj, db_proj = affine_backward(daffine, affine_cache)
+
+        grads['W_proj'] = dW_proj
+        grads['b_proj'] = db_proj
+        grads['W_embed'] = dW_embed
+        grads['Wx'] = dWx
+        grads['Wh'] = dWh
+        grads['b'] = db
+        grads['W_vocab'] = dW_vocab
+        grads['b_vocab'] = db_vocab
 
         return loss, grads
 
@@ -199,8 +227,21 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        pass
-        ############################################################################
-        #                             END OF YOUR CODE                             #
-        ############################################################################
+        # 1. embed first word
+        words = np.ones((N, 1), dtype=np.int32) * self._start
+        embed, _ = word_embedding_forward(words, W_embed)
+        captions[:,0] = words.reshape(-1)
+
+        # 2. make hidden state
+        hidden, _ = affine_forward(features, W_proj, b_proj)
+        for t in range(max_length-1):
+            if self.cell_type == 'rnn':
+                hidden, _ = rnn_step_forward(embed[:,0,:], hidden, Wx, Wh, b)
+            else:
+                hidden, _ = lstm_step_forward(embed[:,0,:], hidden, Wx, Wh, b)
+            vocab_out, _ = temporal_affine_forward(hidden.reshape(N,1,-1), W_vocab, b_vocab)
+            words = vocab_out.argmax(axis=2)
+            embed, _ = word_embedding_forward(words,W_embed)
+            captions[:, t+1] = words.reshape(-1)
+
         return captions

@@ -580,6 +580,7 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # be very short; ours is less than five lines.                            #
     ###########################################################################
     
+    
     N,C,H,W = x.shape
     x_flat = x.swapaxes(1,3).reshape((N*W*H, C))
     out, cache = batchnorm_forward(x_flat, gamma, beta, bn_param)
