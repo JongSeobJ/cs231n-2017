@@ -233,12 +233,13 @@ class CaptioningRNN(object):
         captions[:,0] = words.reshape(-1)
 
         # 2. make hidden state
+        cell = 0
         hidden, _ = affine_forward(features, W_proj, b_proj)
         for t in range(max_length-1):
             if self.cell_type == 'rnn':
                 hidden, _ = rnn_step_forward(embed[:,0,:], hidden, Wx, Wh, b)
             else:
-                hidden, _ = lstm_step_forward(embed[:,0,:], hidden, Wx, Wh, b)
+                hidden, cell, _ = lstm_step_forward(embed[:,0,:], hidden, cell, Wx, Wh, b)
             vocab_out, _ = temporal_affine_forward(hidden.reshape(N,1,-1), W_vocab, b_vocab)
             words = vocab_out.argmax(axis=2)
             embed, _ = word_embedding_forward(words,W_embed)
