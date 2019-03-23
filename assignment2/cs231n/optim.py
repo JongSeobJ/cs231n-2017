@@ -145,7 +145,8 @@ def adam(x, dx, config=None):
     m = config.get('m')
     v = config.get('v')
     t = config.get('t')
-
+    t += 1
+    
     m = beta1*m + (1-beta1)*dx
     mt = m / (1-beta1**t)
     v = beta2*v + (1-beta2)*(dx**2)
